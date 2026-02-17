@@ -1,27 +1,22 @@
 # AdBlock 模块 - 定期更新脚本
 # 此脚本会在设备启动后定期检查并更新广告列表
 
-# 获取模块目录的正确方式
-if [ -z "$MODDIR" ]; then
-    MODDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-fi
-
 # 模块 ID (与 module.prop 中定义一致)
 MODID="adblock_hosts"
 
-HOSTS_FILE="$MODDIR/system/etc/hosts"
-
-# 检测运行环境并使用正确的模块路径
-if [ -d "/data/adb/ksu/modules" ]; then
-    # KernelSU
-    UPDATE_LOG_DIR="/data/adb/ksu/modules/$MODID"
-elif [ -d "/data/adb/modules" ]; then
-    # Magisk
-    UPDATE_LOG_DIR="/data/adb/modules/$MODID"
+# 获取模块目录的正确方式 - 优先使用环境变量，然后检测路径
+if [ -n "$MODDIR" ]; then
+    : # 使用传入的 MODDIR
+elif [ -d "/data/adb/ksu/modules/$MODID" ]; then
+    MODDIR="/data/adb/ksu/modules/$MODID"
+elif [ -d "/data/adb/modules/$MODID" ]; then
+    MODDIR="/data/adb/modules/$MODID"
 else
-    # 备用路径
-    UPDATE_LOG_DIR="$MODDIR/.update"
+    MODDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
+
+HOSTS_FILE="$MODDIR/system/etc/hosts"
+UPDATE_LOG_DIR="$MODDIR"
 
 UPDATE_LOG="$UPDATE_LOG_DIR/update.log"
 UPDATE_URL="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
@@ -155,38 +150,68 @@ log_msg "更新服务完成"
 
 # ========== WebUI 服务启动 ==========
 start_webui() {
-    local webui_dir="$MODDIR/webui"
-    local server_bin="$webui_dir/server"
-    local server_py="$webui_dir/server.py"
+    local webui_dir="$MODDIR/webroot"
+    local server_bin="$MODDIR/webroot/server"
+    local server_py="$MODDIR/webroot/server.py"
+    local port=8888
+
+    # 确保目录存在
+    if [ ! -d "$webui_dir" ]; then
+        log_msg "WebUI 目录不存在: $webui_dir"
+        return 1
+    fi
+
+    # 检查端口是否已被占用
+    if ss -tlnp 2>/dev/null | grep -q ":$port " || netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+        log_msg "WebUI 端口 $port 已被占用，跳过启动"
+        return 0
+    fi
 
     # 如果有编译好的 Go 二进制
     if [ -x "$server_bin" ]; then
         nohup "$server_bin" > /dev/null 2>&1 &
+        log_msg "WebUI (Go) 服务已启动"
         return 0
     fi
 
     # 使用 Python 服务器 (推荐)
     if command -v python3 &>/dev/null; then
         if [ -f "$server_py" ]; then
-            nohup python3 "$server_py" > /dev/null 2>&1 &
+            nohup python3 "$server_py" > "$MODDIR/webui.log" 2>&1 &
+            sleep 1
+            # 检查进程是否启动成功
+            if pgrep -f "python3.*server.py" > /dev/null; then
+                log_msg "WebUI (Python) 服务已启动"
+                return 0
+            else
+                log_msg "WebUI (Python) 服务启动失败"
+                return 1
+            fi
         else
             cd "$webui_dir"
-            nohup python3 -m http.server 8888 > /dev/null 2>&1 &
+            nohup python3 -m http.server $port > /dev/null 2>&1 &
+            log_msg "WebUI (Python) 服务已启动 (内置服务器)"
+            return 0
         fi
-        return 0
     fi
 
     # 使用 busybox httpd
     if command -v httpd &>/dev/null; then
         cd "$webui_dir"
-        nohup httpd -p 8888 > /dev/null 2>&1 &
+        nohup httpd -p $port > /dev/null 2>&1 &
+        log_msg "WebUI (httpd) 服务已启动"
         return 0
     fi
 
+    log_msg "无可用的 WebUI 服务器"
     return 1
 }
 
-# KSU 环境自动启动 WebUI
-if [ -n "$KSU" ] || [ -d "/data/adb/ksu" ]; then
+# KSU/Magisk 环境自动启动 WebUI
+# 检测方法: 检查 KSU 环境变量或 /data/adb/ksu 目录或 /proc/ksu 存在
+# 或者检查 Magisk 环境变量或 /data/adb/modules 目录
+if [ -n "$KSU" ] || [ -d "/data/adb/ksu" ] || [ -f "/proc/ksu/status" ]; then
+    start_webui
+elif [ -n "$MAGISK" ] || [ -d "/data/adb/modules" ]; then
     start_webui
 fi

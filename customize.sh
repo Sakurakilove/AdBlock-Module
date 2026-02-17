@@ -30,11 +30,11 @@ ui_print ">>> 设置文件权限..."
 set_perm_recursive "$MODPATH" 0 0 0755 0644
 
 # 设置 WebUI 脚本执行权限
-if [ -f "$MODPATH/webui/server.py" ]; then
-    chmod 755 "$MODPATH/webui/server.py"
+if [ -f "$MODPATH/webroot/server.py" ]; then
+    chmod 755 "$MODPATH/webroot/server.py"
 fi
-if [ -f "$MODPATH/webui/server" ]; then
-    chmod 755 "$MODPATH/webui/server"
+if [ -f "$MODPATH/webroot/server" ]; then
+    chmod 755 "$MODPATH/webroot/server"
 fi
 if [ -f "$MODPATH/servicewebui.sh" ]; then
     chmod 755 "$MODPATH/servicewebui.sh"

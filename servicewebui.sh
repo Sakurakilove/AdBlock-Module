@@ -10,6 +10,11 @@ if [ -z "$MODDIR" ]; then
     fi
 fi
 
+# 记录日志
+log_msg() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
 MODID="adblock_hosts"
 
 # 获取正确的模块路径
@@ -19,9 +24,9 @@ elif [ -d "/data/adb/modules/$MODID" ]; then
     MODDIR="/data/adb/modules/$MODID"
 fi
 
-WEBUI_DIR="$MODDIR/webui"
-SERVER_BIN="$WEBUI_DIR/server"
-SERVER_PY="$WEBUI_DIR/server.py"
+WEBUI_DIR="$MODDIR/webroot"
+SERVER_BIN="$MODDIR/webroot/server"
+SERVER_PY="$MODDIR/webroot/server.py"
 
 # 启动 WebUI 服务
 start_webui() {
