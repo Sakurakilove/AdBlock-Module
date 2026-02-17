@@ -1,0 +1,14 @@
+id=adblock_hosts
+name=AdBlock Hosts 广告屏蔽
+version=v1.2
+versionCode=3
+author=朝歌
+description=基于 StevenBlack hosts 的广告屏蔽模块，支持自动更新，内置 79000+ 广告域名，带 WebUI 管理界面
+updateJson=https://raw.githubusercontent.com/Sakurakilove/AdBlock-Module/main/update.json
+
+# WebUI 配置 - KSU/Magisk 模块列表打开
+# 访问地址: http://localhost:8888
+webui=file:///data/adb/modules/adblock_hosts/webui/index.html
+
+# 脚本配置
+onBoot=service.sh
